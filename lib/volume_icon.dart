@@ -1,11 +1,62 @@
-import 'dart:math';
-
+import 'package:animated_volume_icon/volume_icon_painter.dart';
 import 'package:flutter/material.dart';
 
-class VolumeIcon extends StatelessWidget {
-  VolumeIcon({super.key});
+class VolumeIcon extends StatefulWidget {
+  const VolumeIcon({super.key});
+
+  @override
+  State<VolumeIcon> createState() => _VolumeIconState();
+}
+
+class _VolumeIconState extends State<VolumeIcon> with TickerProviderStateMixin {
+  //----------
+  late AnimationController _crosslineAnimationController;
+  late AnimationController _innerArcAnimationController;
+  late AnimationController _outerArcAnimationController;
+  late Animation<double> crossLine;
+  late Animation<double> innerArcOpacity;
+  late Animation<double> outerArcOpacity;
+  //-----------
 
   final volume = ValueNotifier<double>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _crosslineAnimationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
+    _innerArcAnimationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
+    _outerArcAnimationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100));
+    crossLine = Tween<double>(begin: 0.08, end: 0.92).animate(CurvedAnimation(
+        parent: _crosslineAnimationController, curve: Curves.decelerate));
+    innerArcOpacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+        parent: _innerArcAnimationController, curve: Curves.decelerate));
+    outerArcOpacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+        parent: _outerArcAnimationController, curve: Curves.decelerate));
+
+    initialAnimation();
+  }
+
+  void initialAnimation() {
+    if (volume.value == 0) {
+      _crosslineAnimationController.reset();
+      _crosslineAnimationController.forward();
+      _innerArcAnimationController.reset();
+      _innerArcAnimationController.forward();
+      _outerArcAnimationController.reset();
+      _outerArcAnimationController.forward();
+    }
+    if (volume.value < 0) {
+      _innerArcAnimationController.reset();
+      _innerArcAnimationController.forward();
+    }
+    if (volume.value < 50) {
+      _outerArcAnimationController.reset();
+      _outerArcAnimationController.forward();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,18 +68,25 @@ class VolumeIcon extends StatelessWidget {
           builder: (context, val, _) {
             return Column(
               children: [
-                Expanded(
-                  child: Center(
-                    child: Container(
-                      color: Colors.white10,
-                      width: size.width * 0.5,
-                      height: size.width * 0.5,
-                      child: CustomPaint(
-                        painter: VolumeIconPainter(value: val),
-                      ),
-                    ),
-                  ),
-                ),
+                AnimatedBuilder(
+                    animation: _crosslineAnimationController,
+                    builder: (context, _) {
+                      return Expanded(
+                        child: Center(
+                          child: SizedBox(
+                            width: size.width * 0.5,
+                            height: size.width * 0.5,
+                            child: CustomPaint(
+                              painter: VolumeIconPainter(
+                                  value: val,
+                                  crossLine: crossLine.value,
+                                  innerArcOpacity: innerArcOpacity.value,
+                                  outerArcOpacity: outerArcOpacity.value),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                 Container(
                   margin: EdgeInsets.symmetric(
                       horizontal: size.width * 0.1, vertical: size.width * 0.1),
@@ -41,7 +99,21 @@ class VolumeIcon extends StatelessWidget {
                     value: val,
                     min: 0,
                     max: 100,
-                    onChanged: (value) => volume.value = value,
+                    onChanged: (value) {
+                      if (value == 0) {
+                        _crosslineAnimationController.reset();
+                        _crosslineAnimationController.forward();
+                      }
+                      if (value < 0) {
+                        _innerArcAnimationController.reset();
+                        _innerArcAnimationController.forward();
+                      }
+                      if (value < 50) {
+                        _outerArcAnimationController.reset();
+                        _outerArcAnimationController.forward();
+                      }
+                      volume.value = value;
+                    },
                   ),
                 )
               ],
@@ -49,84 +121,12 @@ class VolumeIcon extends StatelessWidget {
           }),
     );
   }
-}
-
-class VolumeIconPainter extends CustomPainter {
-  final double value;
-  VolumeIconPainter({required this.value});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint = Paint()..color = Colors.white;
-
-    Path mainPath = Path()
-      ..moveTo(0, size.height * 0.25)
-      ..lineTo(size.width * 0.25, size.height * 0.25)
-      ..lineTo(size.width * 0.53, 0)
-      ..lineTo(size.width * 0.53, size.height)
-      ..lineTo(size.width * 0.25, size.height * 0.75)
-      ..lineTo(0, size.height * 0.75)
-      ..close();
-
-    canvas.drawPath(mainPath, paint);
-
-    if (value == 0) {
-      canvas.drawLine(
-          Offset(size.width * 0.08, size.height * 0.08),
-          Offset(size.width * 0.92, size.height * 0.92),
-          Paint()
-            ..color = Colors.white
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = size.width * 0.16);
-    }
-
-    //clips the arcs at right side only
-    Path clipPath = Path()
-      ..moveTo(size.width * 0.6, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width * 0.6, size.height)
-      ..close();
-    canvas.clipPath(clipPath);
-
-    //draws inner arc
-    if (value > 0 || value == 0) {
-      drawLowVolume(canvas: canvas, size: size, paint: paint);
-    }
-    //draws outer arc
-    if (value > 50 || value == 0) {
-      drawHighVolume(canvas: canvas, size: size, paint: paint);
-    }
+  void dispose() {
+    _crosslineAnimationController.dispose();
+    _innerArcAnimationController.dispose();
+    _outerArcAnimationController.dispose();
+    super.dispose();
   }
-
-  drawLowVolume(
-      {required Canvas canvas, required Size size, required Paint paint}) {
-    Rect inner = Rect.fromCenter(
-        center: Offset(size.width / 2, size.height / 2),
-        width: (size.width / 2),
-        height: (size.height / 2));
-
-    canvas.drawArc(inner, 270 * pi / 180, 180 * pi / 180, false, paint);
-  }
-
-  drawHighVolume(
-      {required Canvas canvas, required Size size, required Paint paint}) {
-    Rect outer = Rect.fromCenter(
-        center: Offset(size.width / 2, size.height / 2),
-        width: size.width - (size.width * 0.16),
-        height: size.height - (size.height * 0.16));
-
-    canvas.drawArc(
-        outer,
-        270 * pi / 180,
-        180 * pi / 180,
-        false,
-        paint
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = size.width * 0.15);
-  }
-
-  @override
-  bool shouldRepaint(VolumeIconPainter oldDelegate) =>
-      value != oldDelegate.value;
 }
