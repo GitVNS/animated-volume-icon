@@ -28,15 +28,7 @@ class VolumeIconPainter extends CustomPainter {
 
     canvas.drawPath(mainPath, paint);
 
-    if (value == 0) {
-      canvas.drawLine(
-          Offset(size.width * 0.08, size.height * 0.08),
-          Offset(size.width * crossLine, size.height * crossLine),
-          Paint()
-            ..color = Colors.white
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = size.width * 0.16);
-    }
+    canvas.save();
 
     //clips the arcs at right side only
     Path clipPath = Path()
@@ -60,6 +52,25 @@ class VolumeIconPainter extends CustomPainter {
           canvas: canvas,
           size: size,
           paint: Paint()..color = Colors.white.withOpacity(outerArcOpacity));
+    }
+
+    canvas.restore();
+
+    if (value == 0) {
+      canvas.drawLine(
+          Offset(size.width * 0.08, size.height * 0.08),
+          Offset(size.width * crossLine, size.height * crossLine),
+          Paint()
+            ..color = Colors.deepPurple.shade900
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = size.width * 0.26);
+      canvas.drawLine(
+          Offset(size.width * 0.08, size.height * 0.08),
+          Offset(size.width * crossLine, size.height * crossLine),
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = size.width * 0.16);
     }
   }
 
